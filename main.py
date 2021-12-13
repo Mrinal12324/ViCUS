@@ -4,13 +4,17 @@ import requests
 import json
 import random
 from replit import db
+from keep_alive import keep_alive
 
 
 client =discord.Client()
 
-sad_words=["sad","depressed","unhappy","angry","n=miserable"]
+sad_words=["sad","depressed","unhappy","angry","miserable"]
 
 st_encourage =["Cheer up!","Hang in there","On my Way"]
+
+if "responding" not in db.keys():
+  db["responding"]=True
 
 def update_encouragements(encouraging_message):
   if "encouragements" in db.keys():
@@ -32,6 +36,7 @@ def get_quote():
 
   quote=json_data[0]['q']  + ' -' + json_data[0]['a']
   return(quote)
+
 def get_image():
   resp=requests.get("https://api.unsplash.com/photos/random?client_id={1.key}".format(os.getenv('Unsplash')))
   json_img=json.loads(resp.text)
@@ -57,30 +62,43 @@ async def on_message(message):
     quote=get_quote()
     await message.channel.send(quote)
 
-  #if msg.startswith('$image'):
-  #  imag=get_image()
-  #  await message.channel.send(imag)
-  options=st_encourage
-  if "encouragements" in db.keys():
-    options=options + db["encouragements"]
-  if any(word in msg for word in sad_words):
-    await message.channel.send(random.choice(st_encourage))
+  if db["responding"]:
+    options = st_encourage
+    if "encouragements" in db.keys():
+      options = options + list(db["encouragements"])
 
-  if msg.startswith('$new'):
+    if any(word in msg for word in sad_words):
+      await message.channel.send(random.choice(options))
+
+  if msg.startswith("$new"):
     encouraging_message = msg.split("$new ",1)[1]
     update_encouragements(encouraging_message)
-    await message.channel.send("New encouragements message added.")
-  
-  if msg.stratswith("$del"):
-    encouragements=[]
+    await message.channel.send("New encouraging message added.")
+
+  if msg.startswith("$del"):
+    encouragements = []
     if "encouragements" in db.keys():
-      index=int(msg.split("$del",1)[1])
+      index = int(msg.split("$del",1)[1])
       delete_encouragement(index)
-      encouragements=db["encouragements"]
-    await msg.send(encouragements)
+      encouragements = db["encouragements"]
+    await message.channel.send(encouragements)
 
+  if msg.startswith("$list"):
+    encouragements = []
+    if "encouragements" in db.keys():
+      encouragements = db["encouragements"]
+    await message.channel.send(encouragements)
 
+  if msg.startswith("$responding"):
+    value = msg.split("$responding ",1)[1]
 
+    if value.lower() == "true":
+      db["responding"] = True
+      await message.channel.send("Responding is on.")
+    else:
+      db["responding"] = False
+      await message.channel.send("Responding is off.")
 
+keep_alive()
 client.run(os.getenv('TOKEN'))
 client.run(os.getenv('Unsplash'))
